@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "samebit"
+version = "0.1.0"
+description = "Integer-only inference that gives the same bits on every chip"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Sankur Kundu" }]
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+torch = ["torch>=2.1"]
+mlx = ["mlx>=0.20"]
+
+[project.urls]
+Homepage = "https://github.com/Shakhtar-Sankur/samebit"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+samebit = ["golden.json", "csrc/*.c"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

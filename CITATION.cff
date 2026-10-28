@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use samebit, please cite it as below."
+title: "samebit: integer-only inference that gives the same bits on every chip"
+authors:
+  - family-names: Kundu
+    given-names: Sankur
+version: 0.1.0
+date-released: 2026-10-28
+license: Apache-2.0
+repository-code: "https://github.com/Shakhtar-Sankur/samebit"

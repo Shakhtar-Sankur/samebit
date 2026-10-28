@@ -1,0 +1,143 @@
+# samebit
+
+**The same model, the same prompt, the same bits, on every chip.**
+
+samebit is an integer-only inference specification with conforming kernels
+for several backends. A model that follows the spec produces bit-identical
+intermediate tensors, logits and tokens on every conforming backend, with any
+batch size, thread count or summation order.
+
+```
+$ python -m samebit
+golden e5aa829b49bc2cef  tokens [195, 18, 29, 236, 112, 255, 129, 248, 13, 41, 129, 128, 50, 62, 114, 16]
+reference  e5aa829b49bc2cef  PASS  (0.29s)
+numpy      e5aa829b49bc2cef  PASS  (0.02s)
+c          e5aa829b49bc2cef  PASS  (0.08s)
+torch      e5aa829b49bc2cef  PASS  (0.06s)
+mlx        e5aa829b49bc2cef  PASS  (0.46s)
+```
+
+Each line is a SHA-256 over all 153 intermediate tensors of a 16-token greedy
+generation. All five implementations are written separately and share no
+arithmetic code.
+
+## The problem
+
+Ask a model the same question twice at temperature 0 and you can get two
+different answers. Floating-point addition is not associative, so the result
+of a reduction depends on how a kernel splits it. That split changes with the
+batch size, the GPU model, the vendor, the kernel library and the version.
+
+`examples/why_integers.py` sums one 4096-element dot product in five orders:
+
+```
+                   order         float32 result   int32 result
+ forward, blocks of 4096 -31.6259975 (c1fd020b)        -316260
+   forward, blocks of 64 -31.6260014 (c1fd020d)        -316260
+  backward, blocks of 64 -31.6259975 (c1fd020b)        -316260
+    forward, blocks of 7 -31.6260242 (c1fd0219)        -316260
+   backward, blocks of 1 -31.6259823 (c1fd0203)        -316260
+```
+
+Four different float32 results, one integer result.
+
+Reproducible inference matters because:
+
+- **Reinforcement learning:** a sampler and a trainer that compute
+  log-probabilities differently is a known source of instability.
+- **Audits:** evaluation, safety and regulatory work need results anyone can
+  reproduce.
+- **Verification:** if an inference provider's output is fully determined,
+  anyone can check that they ran the model they claim.
+- **Hardware portability:** a model can give the same answer on an NVIDIA
+  GPU, an AMD GPU, an Apple laptop and a phone.
+
+Recent work makes floating-point inference batch-invariant or invariant
+across tensor-parallel sizes within one software stack. samebit takes a
+different route: it removes floating point from the runtime, so agreement
+follows from integer arithmetic and does not depend on any vendor's kernels.
+
+## How it works
+
+- **Integer arithmetic only.** int8 weights and activations, exact int32
+  accumulation and fixed-point requantization (`rshift_round`, round half up,
+  defined for negative values too).
+- **Proved bounds.** `docs/BOUNDS.md` shows that no intermediate overflows in
+  any summation order. Up to K = 131071, an int8 matmul is exact however it
+  is tiled, threaded or vectorised.
+- **Exact nonlinearities.** RMSNorm uses an exact 16-step integer square root.
+  Softmax, SiLU and rotary embeddings use lookup tables built with 60-digit
+  decimal arithmetic, so table bytes do not depend on a platform's `libm`.
+- **Pinned tie-breaking.** argmax returns the lowest tied index on every
+  backend.
+
+The spec is [SPEC.md](SPEC.md). Its executable form is
+`src/samebit/reference.py`, written in plain Python integers with explicit
+bound checks.
+
+## Backends
+
+| Backend | Where it runs | Status |
+|---|---|---|
+| `reference` | Plain Python integers | Conforms; the definition |
+| `numpy` | Any CPU | Conforms |
+| `c` | Portable C99 with optional OpenMP; three accumulation orders | Conforms; all orders agree |
+| `torch` | PyTorch CPU | Conforms |
+| `mlx` | Apple MLX (Metal on Apple silicon, CPU elsewhere) | Conforms on CPU; Metal not yet run |
+| CUDA | NVIDIA GPUs | Planned |
+| ROCm / HIP | AMD GPUs | Planned |
+
+## Quick start
+
+```bash
+git clone https://github.com/Shakhtar-Sankur/samebit
+cd samebit
+pip install -e ".[test]"         # numpy and pytest
+pip install torch mlx            # optional extra backends
+python -m samebit                # conformance check against the golden digest
+pytest                           # op-level and end-to-end tests
+python examples/why_integers.py  # floats vs integers
+```
+
+The C backend compiles itself on first use with the system C compiler.
+
+## Tests
+
+- **Op conformance** (`tests/test_ops.py`): every op on every backend must
+  match the reference exactly. The tests cover the int8 minimum, saturation,
+  rounding of negative halves, all-tied rows, masked softmax and the
+  largest matmul depth allowed by the int32 bound.
+- **End to end** (`tests/test_model.py`): a 2-layer, Llama-shaped decoder
+  with RMSNorm, rotary attention with a KV cache and SwiGLU must reproduce
+  the golden digest on every backend. Processing the prompt in one batch or
+  one token at a time must give identical logits.
+- **Order independence:** the C backend runs ascending, descending and
+  blocked back-to-front accumulation and must agree.
+
+## Roadmap
+
+1. **Stage 1, done:** spec v0.1, proved bounds, five conforming backends, and
+   a conformance suite with a golden digest.
+2. **Stage 2:** CUDA and Metal kernels. Convert a real open model (Qwen2.5
+   0.5B) to the spec. Measure accuracy against the floating-point original,
+   and the speed cost of determinism.
+3. **Stage 3:** AMD ROCm. Machine-checked proofs that the kernels meet the
+   spec and the bounds. Preprint.
+4. **Stage 4:** a public auditor that checks, from outputs alone, whether a
+   hosted model matches its published weights.
+
+## Prior art
+
+Integer-only inference is well established: gemmlowp and TensorFlow Lite
+fixed-point requantization, and integer-only transformers such as I-BERT
+(Kim et al., 2021). samebit applies these ideas to a different goal. It turns
+integer inference into an exact, cross-vendor conformance target with a
+written spec, proved bounds and a golden digest.
+
+## Citation
+
+See [CITATION.cff](CITATION.cff).
+
+## Licence
+
+Apache-2.0. Copyright 2026 Sankur Kundu.

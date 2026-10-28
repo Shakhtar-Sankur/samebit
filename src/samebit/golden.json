@@ -1,0 +1,24 @@
+{
+  "prompt": "The same bits on every chip.",
+  "steps": 16,
+  "tokens": [
+    195,
+    18,
+    29,
+    236,
+    112,
+    255,
+    129,
+    248,
+    13,
+    41,
+    129,
+    128,
+    50,
+    62,
+    114,
+    16
+  ],
+  "digest": "e5aa829b49bc2cef63cfb84cb5919eb277b95d4dc78bfe9dd120dafb81975f19",
+  "tensors": 153
+}
