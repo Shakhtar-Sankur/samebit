@@ -45,6 +45,8 @@ Accuracy on WikiText-2 test, against the original float32 model:
 |---|---|---|---|---|
 | Qwen2.5-0.5B | 10,240 (40 × 256) | 22.99 | 23.16 (+0.75%) | 93.25% |
 
+Per-window results: [results/qwen2_wikitext2_eval_x86_2026-10-28.txt](results/qwen2_wikitext2_eval_x86_2026-10-28.txt).
+
 Calibration uses only WikiText-2 *train*; the test text is never seen during conversion.
 
 Bit-identity across three separately written implementations, checked on all 24 residual
@@ -65,7 +67,7 @@ unit. Steps to reproduce are in [tools/qwen2](tools/qwen2/README.md).
 
 On a Tesla T4 (Kaggle, 28 October 2026), the v0.2 CUDA kernels (`src/samebit/v2/ops_cuda.py`)
 reproduce the x86 CPU's logits exactly, on real WikiText-2 text
-([notebook](examples/kaggle_qwen.ipynb), `tools/qwen2/gpu_check.py`):
+([notebook](examples/kaggle_qwen.ipynb), `tools/qwen2/gpu_check.py`, [full output](results/qwen2_t4_kaggle_2026-10-28.txt)):
 
 ```
 GPU: Tesla T4

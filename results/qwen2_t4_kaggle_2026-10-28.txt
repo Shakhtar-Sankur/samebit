@@ -1,0 +1,32 @@
+# Output of examples/kaggle_qwen.ipynb, last cell (tools/qwen2/gpu_check.py)
+# Kaggle, NVIDIA Tesla T4, 28 October 2026, samebit commit e1549e8
+...........                                                              [100%]
+11 passed in 0.81s
+GPU: Tesla T4
+integer model fingerprint e1994bc2e4f9bff7 (same)
+
+1. Same bits, GPU vs CPU (logits of every position):
+   window 0: GPU 9709de19df934eb4  CPU 9709de19df934eb4  published x86 CPU 9709de19df934eb4  IDENTICAL
+   window 1: GPU 204ff68dead1d2ea  CPU 204ff68dead1d2ea  published x86 CPU 204ff68dead1d2ea  IDENTICAL
+
+2. Same bits under any summation order (split-K blocks + atomicAdd):
+   split-K  1: 9709de19df934eb4
+   split-K  4: 9709de19df934eb4
+   split-K 16: 9709de19df934eb4
+   split-K 64: 9709de19df934eb4
+
+3. The first 128 positions: alone vs inside a longer input or a batch
+   samebit integers, GPU, alone vs inside 256 tokens: max |difference| 0
+   PyTorch float16, GPU, alone vs inside 256 tokens: max |difference| 0.251
+   PyTorch float16, GPU, alone vs in a batch of 8:   max |difference| 0.125
+   PyTorch float32, GPU, alone vs inside 256 tokens: max |difference| 9.54e-05
+   PyTorch float32, GPU, alone vs in a batch of 8:   max |difference| 0.000128
+
+4. Speed, processing one 256-token prompt (median of 3 runs):
+   samebit integers, GPU                482.3 ms       531 tokens/s
+   samebit integers, CPU (NumPy)       7763.1 ms        33 tokens/s
+   PyTorch float16, GPU                  42.4 ms      6033 tokens/s
+   PyTorch float32, GPU                  79.5 ms      3219 tokens/s
+   PyTorch float32, CPU                1486.6 ms       172 tokens/s
+
+RESULT: PASS, identical bits everywhere
