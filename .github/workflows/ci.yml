@@ -34,3 +34,7 @@ jobs:
         run: python -m samebit
       - name: Tests
         run: python -m pytest -q
+      - name: CUDA kernels under CPU emulation
+        run: |
+          PYTHONPATH=tests/emulated_cupy python -m samebit cuda
+          PYTHONPATH=tests/emulated_cupy python -m pytest -q -k cuda

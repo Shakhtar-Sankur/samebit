@@ -88,7 +88,7 @@ bound checks.
 | `c` | Portable C99 with optional OpenMP; three accumulation orders | Conforms; all orders agree |
 | `torch` | PyTorch CPU | Conforms |
 | `mlx` | Apple MLX (Metal on Apple silicon, CPU elsewhere) | Conforms on CPU; Metal not yet run |
-| CUDA | NVIDIA GPUs | Planned |
+| `cuda` | NVIDIA GPUs (CuPy, kernels compiled at run time) | Kernels pass every test under CPU emulation in CI, with split-K atomics in shuffled order; first T4 run pending |
 | ROCm / HIP | AMD GPUs | Planned |
 
 ## Quick start
@@ -104,6 +104,24 @@ python examples/why_integers.py  # floats vs integers
 ```
 
 The C backend compiles itself on first use with the system C compiler.
+
+### On an NVIDIA GPU
+
+Open [`examples/kaggle_gpu.ipynb`](examples/kaggle_gpu.ipynb) in Kaggle, set the accelerator to a
+T4 or P100 and run all cells, or locally:
+
+```bash
+pip install -e ".[test,cuda]"
+python -m samebit cuda
+```
+
+The CUDA matmul splits every dot product across `SAMEBIT_CUDA_SPLITK` thread blocks (default 8)
+and combines them with `atomicAdd`, so the order of the final additions changes on every run. The
+digest must not.
+
+Without a GPU, `tests/emulated_cupy` stands in for CuPy: it compiles the same CUDA source as C++,
+runs every block and thread on the CPU, and shuffles the split-K blocks. CI runs the CUDA kernels
+this way on every push.
 
 ## Tests
 
@@ -122,8 +140,8 @@ The C backend compiles itself on first use with the system C compiler.
 
 1. **Stage 1, done:** spec v0.1, proved bounds, five conforming backends, and
    a conformance suite with a golden digest.
-2. **Stage 2:** CUDA and Metal kernels. Convert a real open model (Qwen2.5
-   0.5B) to the spec. Measure accuracy against the floating-point original,
+2. **Stage 2:** CUDA kernels (written; emulated in CI; T4 run next) and Metal.
+   Convert a real open model (Qwen2.5 0.5B) to the spec. Measure accuracy against the floating-point original,
    and the speed cost of determinism.
 3. **Stage 3:** AMD ROCm. Machine-checked proofs that the kernels meet the
    spec and the bounds. Preprint.

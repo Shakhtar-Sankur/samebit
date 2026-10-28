@@ -2,7 +2,7 @@
 
 import importlib
 
-NAMES = ("reference", "numpy", "c", "torch", "mlx")
+NAMES = ("reference", "numpy", "c", "torch", "mlx", "cuda")
 
 
 def load(name):

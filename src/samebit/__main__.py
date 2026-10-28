@@ -28,6 +28,9 @@ def main(argv):
     ok = True
     print(f"golden {GOLDEN['digest'][:16]}  tokens {GOLDEN['tokens']}")
     for name in names:
+        dev = getattr(load(name), "device_name", None)
+        if dev:
+            print(f"{name}: {dev()}")
         tokens, digest, secs = run(name)
         same = digest == GOLDEN["digest"] and tokens == GOLDEN["tokens"]
         ok &= same

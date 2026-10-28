@@ -22,6 +22,7 @@ classifiers = [
 test = ["pytest>=7"]
 torch = ["torch>=2.1"]
 mlx = ["mlx>=0.20"]
+cuda = ["cupy-cuda12x>=13"]
 
 [project.urls]
 Homepage = "https://github.com/Shakhtar-Sankur/samebit"
