@@ -13,7 +13,7 @@ import tempfile
 
 import numpy as np
 
-int8, int32, int64, uint8 = np.int8, np.int32, np.int64, np.uint8
+int8, int32, int64, uint8, uint64 = np.int8, np.int32, np.int64, np.uint8, np.uint64
 
 
 def asarray(x, dtype=None):
@@ -34,6 +34,10 @@ def empty(shape, dtype=None):
 
 def asnumpy(x):
     return np.asarray(x)
+
+
+def __getattr__(attr):  # everything else (tril, ones, concatenate, ...) is NumPy's
+    return getattr(np, attr)
 
 
 class _RT:
@@ -60,6 +64,9 @@ static D3 blockIdx, threadIdx, blockDim;
 #define __device__ static inline
 using std::min;
 static inline int atomicAdd(int* p, int v) { int o = *p; *p = o + v; return o; }
+static inline unsigned long long atomicAdd(unsigned long long* p, unsigned long long v) {
+  unsigned long long o = *p; *p = o + v; return o;
+}
 """
 
 
@@ -106,6 +113,7 @@ extern "C" void emu_{name}(int gx, int gy, int gz, int bx, unsigned seed, {param
                 "-shared",
                 "-Wall",
                 "-Wno-unused-function",
+                "-Wno-unknown-pragmas",
                 cpp,
                 "-o",
                 so,

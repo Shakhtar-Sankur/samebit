@@ -10,10 +10,11 @@ def forward(P, tokens, ops=O, trace=None):
     cfg = P["cfg"]
     nh, nkv, d = cfg["num_attention_heads"], cfg["num_key_value_heads"], cfg["hidden_size"]
     hd, rep = d // nh, nh // nkv
+    xp = getattr(ops, "xp", np)  # array module: NumPy, or CuPy for ops_cuda
     t = len(tokens)
-    tok = np.asarray(tokens)
+    tok = xp.asarray(tokens)
     cos, sin = P["cos"][:t], P["sin"][:t]
-    valid = np.tril(np.ones((t, t), dtype=bool))
+    valid = xp.tril(xp.ones((t, t), dtype=bool))
     # embedding row (int8) -> residual Q12, per-row multiplier
     x = ops.requant(P["embed"][tok].T, P["embed_m"][tok], P["embed_s"], 32).T
     for i, L in enumerate(P["layers"]):
@@ -32,7 +33,7 @@ def forward(P, tokens, ops=O, trace=None):
             sc = ops.matmul(q[:, h, :], k[:, g, :].T)
             pr = ops.softmax(sc, valid, L["sm_m"], L["sm_s"], P["exp_lut"])
             heads.append(ops.requant(ops.matmul(pr, v[:, g, :]), L["pv_m"], L["pv_s"], 16))
-        o = np.concatenate(heads, axis=-1)
+        o = xp.concatenate(heads, axis=-1)
         x = ops.add_sat(x, lin(o, "o", 32), 32)
         b = ops.rmsnorm(x, L["norm2_g"], P["eps_q24"], L["norm2_s"])
         gate = ops.lut16(lin(b, "gate", 16), L["silu"])

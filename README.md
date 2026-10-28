@@ -61,6 +61,10 @@ The NumPy BLAS path does its integer matmuls in float64. That is exact because t
 every partial sum below 2^53. A floating-point unit therefore gives the same bits as an integer
 unit. Steps to reproduce are in [tools/qwen2](tools/qwen2/README.md).
 
+v0.2 CUDA kernels (`src/samebit/v2/ops_cuda.py`) run the same model on an NVIDIA GPU. They match the
+CPU bit for bit under CPU emulation on every push. To run them on a real GPU, open
+[`examples/kaggle_qwen.ipynb`](examples/kaggle_qwen.ipynb) in Kaggle.
+
 ## The problem
 
 Ask a model the same question twice at temperature 0 and you can get two

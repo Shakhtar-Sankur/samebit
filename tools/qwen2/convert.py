@@ -6,10 +6,13 @@ a float. Lookup tables are built with 60-digit decimal arithmetic.
 """
 
 import collections
+import hashlib
+import json
 import math
 import pickle
 import sys
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
+from pathlib import Path
 
 import numpy as np
 import pyarrow.parquet as pq
@@ -19,6 +22,7 @@ from transformers import AutoTokenizer
 
 WORK = Q.MODEL.parent  # holds model/, data/ and the converted .pkl
 OUT = WORK / "qwen2.5-0.5b.samebit.pkl"
+CALIB = Path(__file__).parent / "calibration.json"
 Q12 = 4096  # residual stream: value * 2^12
 MARGIN = 2.0  # activation scale = MARGIN * calibrated max / 32767
 M_BITS = 24  # requant multipliers are below 2^24
@@ -104,7 +108,12 @@ def calibrate(cfg, w, n_windows=16, t=256):
 
 def convert(max_pos=1024):
     cfg, w = Q.load()
-    mx = calibrate(cfg, w)
+    if CALIB.exists() and "--recalibrate" not in sys.argv:
+        # pinned maxima (exact float64, hex): every machine builds the same integers
+        mx = {k: float.fromhex(v) for k, v in json.loads(CALIB.read_text()).items()}
+    else:
+        mx = calibrate(cfg, w)
+        CALIB.write_text(json.dumps({k: float(v).hex() for k, v in sorted(mx.items())}, indent=0))
 
     def act(name):
         return MARGIN * mx[name] / 32767.0
@@ -182,8 +191,29 @@ def convert(max_pos=1024):
     return P
 
 
+def fingerprint(P):
+    """SHA-256 over every integer array of a converted model, in a fixed order."""
+    h = hashlib.sha256()
+
+    def walk(v):
+        if isinstance(v, dict):
+            for k in sorted(v):
+                if k not in ("cfg", "calib_max", "logit_unit"):
+                    h.update(k.encode())
+                    walk(v[k])
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+        elif v is not None:
+            h.update(np.asarray(v, dtype="<i8").tobytes())
+
+    walk(P)
+    return h.hexdigest()[:16]
+
+
 if __name__ == "__main__":
     P = convert()
+    print("model fingerprint", fingerprint(P))
     with open(OUT, "wb") as f:
         pickle.dump(P, f, protocol=4)
     print("saved")
