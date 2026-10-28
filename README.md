@@ -21,6 +21,10 @@ Each line is a SHA-256 over all 153 intermediate tensors of a 16-token greedy
 generation. All five implementations are written separately and share no
 arithmetic code.
 
+Continuous integration reproduces the same digest on x86-64 Linux and on ARM64
+Apple-silicon macOS, with Python 3.9 and 3.12: 4 machines × 5 backends, one
+digest ([run](https://github.com/Shakhtar-Sankur/samebit/actions/runs/40629298323)).
+
 ## The problem
 
 Ask a model the same question twice at temperature 0 and you can get two
