@@ -24,6 +24,14 @@ arithmetic code.
 Continuous integration reproduces the same digest on x86-64 Linux and on ARM64
 Apple-silicon macOS, with Python 3.9 and 3.12: 4 machines × 5 backends, one
 digest ([run](https://github.com/Shakhtar-Sankur/samebit/actions/runs/40629298323)).
+On an NVIDIA Tesla T4 (Kaggle, 28 October 2026), the CUDA backend reproduces the same
+digest, with its matmul split across thread blocks and combined by `atomicAdd`, and
+all 60 tests pass:
+
+```
+cuda: Tesla T4
+cuda       e5aa829b49bc2cef  PASS  (0.27s)
+```
 
 ## The problem
 
@@ -88,7 +96,7 @@ bound checks.
 | `c` | Portable C99 with optional OpenMP; three accumulation orders | Conforms; all orders agree |
 | `torch` | PyTorch CPU | Conforms |
 | `mlx` | Apple MLX (Metal on Apple silicon, CPU elsewhere) | Conforms on CPU; Metal not yet run |
-| `cuda` | NVIDIA GPUs (CuPy, kernels compiled at run time) | Kernels pass every test under CPU emulation in CI, with split-K atomics in shuffled order; first T4 run pending |
+| `cuda` | NVIDIA GPUs (CuPy, kernels compiled at run time) | Conforms on a Tesla T4 (Kaggle, 28 Oct 2026); also checked under CPU emulation on every push |
 | ROCm / HIP | AMD GPUs | Planned |
 
 ## Quick start
@@ -140,7 +148,7 @@ this way on every push.
 
 1. **Stage 1, done:** spec v0.1, proved bounds, five conforming backends, and
    a conformance suite with a golden digest.
-2. **Stage 2:** CUDA kernels (written; emulated in CI; T4 run next) and Metal.
+2. **Stage 2:** CUDA kernels (done: conform on a Tesla T4) and Metal.
    Convert a real open model (Qwen2.5 0.5B) to the spec. Measure accuracy against the floating-point original,
    and the speed cost of determinism.
 3. **Stage 3:** AMD ROCm. Machine-checked proofs that the kernels meet the
