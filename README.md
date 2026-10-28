@@ -33,6 +33,34 @@ cuda: Tesla T4
 cuda       e5aa829b49bc2cef  PASS  (0.27s)
 ```
 
+## A real model: Qwen2.5-0.5B
+
+Spec v0.2 ([docs/SPEC-v0.2.md](docs/SPEC-v0.2.md)) carries a real pretrained model, Qwen2.5-0.5B
+(494M parameters, 24 layers, grouped-query attention), entirely in integers: int8 weights, int16
+activations, an int32 residual stream and int64 accumulators.
+
+Accuracy on WikiText-2 test, against the original float32 model:
+
+| | Tokens | Float32 perplexity | samebit integer perplexity | Same top-1 token |
+|---|---|---|---|---|
+| Qwen2.5-0.5B | 10,240 (40 × 256) | 22.99 | 23.16 (+0.75%) | 93.25% |
+
+Calibration uses only WikiText-2 *train*; the test text is never seen during conversion.
+
+Bit-identity across three separately written implementations, checked on all 24 residual
+streams and the logits (`tools/qwen2/determinism.py`):
+
+```
+numpy-blas   35650ae52353be4c  (12.1s)
+numpy-int64  35650ae52353be4c  (111.9s)
+torch        35650ae52353be4c  (6.5s)
+32 tokens, 24 residual streams + logits: IDENTICAL
+```
+
+The NumPy BLAS path does its integer matmuls in float64. That is exact because the spec bounds
+every partial sum below 2^53. A floating-point unit therefore gives the same bits as an integer
+unit. Steps to reproduce are in [tools/qwen2](tools/qwen2/README.md).
+
 ## The problem
 
 Ask a model the same question twice at temperature 0 and you can get two
@@ -149,8 +177,8 @@ this way on every push.
 1. **Stage 1, done:** spec v0.1, proved bounds, five conforming backends, and
    a conformance suite with a golden digest.
 2. **Stage 2:** CUDA kernels (done: conform on a Tesla T4) and Metal.
-   Convert a real open model (Qwen2.5 0.5B) to the spec. Measure accuracy against the floating-point original,
-   and the speed cost of determinism.
+   Convert a real open model to the spec (done: Qwen2.5-0.5B, spec v0.2, three implementations
+   bit-identical). Next: v0.2 kernels for C, CUDA and Metal, and the speed cost of determinism.
 3. **Stage 3:** AMD ROCm. Machine-checked proofs that the kernels meet the
    spec and the bounds. Preprint.
 4. **Stage 4:** a public auditor that checks, from outputs alone, whether a

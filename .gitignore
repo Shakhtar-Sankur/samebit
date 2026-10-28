@@ -4,3 +4,7 @@ build/
 dist/
 .pytest_cache/
 *.so
+tools/qwen2/model
+tools/qwen2/data
+tools/qwen2/*.pkl
+*.log
