@@ -67,7 +67,8 @@ unit. Steps to reproduce are in [tools/qwen2](tools/qwen2/README.md).
 
 On a Tesla T4 (Kaggle, 28 October 2026), the v0.2 CUDA kernels (`src/samebit/v2/ops_cuda.py`)
 reproduce the x86 CPU's logits exactly, on real WikiText-2 text
-([notebook](examples/kaggle_qwen.ipynb), `tools/qwen2/gpu_check.py`, [full output](results/qwen2_t4_kaggle_2026-10-28.txt)):
+([notebook](examples/kaggle_qwen.ipynb), `tools/qwen2/gpu_check.py`, [full output](results/qwen2_t4_kaggle_2026-10-28.txt)).
+Kaggle reran it independently, and that public run gives the same digests: [kaggle.com/code/sankurkundu/…](https://www.kaggle.com/code/sankurkundu/samebit-qwen2-5-0-5b-in-integers-bit-identical-o).
 
 ```
 GPU: Tesla T4
@@ -93,7 +94,8 @@ The values are the largest absolute difference in any logit.
 
 ### The cost
 
-Here is the time to process one 256-token prompt, median of 3 runs:
+Here is the time to process one 256-token prompt, median of 3 runs. The public Kaggle rerun measured 513
+tokens/s for samebit and 6,438 for float16:
 
 | | Time | Tokens/s |
 |---|---|---|
