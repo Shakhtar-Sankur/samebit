@@ -61,9 +61,49 @@ The NumPy BLAS path does its integer matmuls in float64. That is exact because t
 every partial sum below 2^53. A floating-point unit therefore gives the same bits as an integer
 unit. Steps to reproduce are in [tools/qwen2](tools/qwen2/README.md).
 
-v0.2 CUDA kernels (`src/samebit/v2/ops_cuda.py`) run the same model on an NVIDIA GPU. They match the
-CPU bit for bit under CPU emulation on every push. To run them on a real GPU, open
-[`examples/kaggle_qwen.ipynb`](examples/kaggle_qwen.ipynb) in Kaggle.
+### The same bits on an NVIDIA GPU
+
+On a Tesla T4 (Kaggle, 28 October 2026), the v0.2 CUDA kernels (`src/samebit/v2/ops_cuda.py`)
+reproduce the x86 CPU's logits exactly, on real WikiText-2 text
+([notebook](examples/kaggle_qwen.ipynb), `tools/qwen2/gpu_check.py`):
+
+```
+GPU: Tesla T4
+integer model fingerprint e1994bc2e4f9bff7 (same)
+   window 0: GPU 9709de19df934eb4  CPU 9709de19df934eb4  published x86 CPU 9709de19df934eb4  IDENTICAL
+   window 1: GPU 204ff68dead1d2ea  CPU 204ff68dead1d2ea  published x86 CPU 204ff68dead1d2ea  IDENTICAL
+   split-K 1, 4, 16, 64: 9709de19df934eb4 every time
+```
+
+The GPU matmul splits every dot product across up to 64 thread blocks and adds their results
+with `atomicAdd`, so the order of the additions differs on every run. The bits do not change.
+
+Ordinary floating-point inference changes when the input shape changes. Here are the logits of
+the same first 128 tokens, computed alone and then inside a longer input or a batch:
+
+| | Alone vs inside 256 tokens | Alone vs in a batch of 8 |
+|---|---|---|
+| samebit integers, T4 | **0** | 0 by construction (each sequence is computed independently) |
+| PyTorch float16, T4 | 0.251 | 0.125 |
+| PyTorch float32, T4 | 9.5e-5 | 1.3e-4 |
+
+The values are the largest absolute difference in any logit.
+
+### The cost
+
+Here is the time to process one 256-token prompt, median of 3 runs:
+
+| | Time | Tokens/s |
+|---|---|---|
+| PyTorch float16, T4 | 42 ms | 6,033 |
+| PyTorch float32, T4 | 80 ms | 3,219 |
+| **samebit integers, T4** | **482 ms** | **531** |
+| PyTorch float32, CPU | 1,487 ms | 172 |
+| samebit integers, CPU (NumPy) | 7,763 ms | 33 |
+
+The first CUDA kernels are plain: one thread per output column, and no tensor cores. That makes
+them 11× slower than float16. The T4's int8 tensor cores can compute exact integer dot products,
+so this gap is the main target of the next stage.
 
 ## The problem
 
@@ -128,7 +168,7 @@ bound checks.
 | `c` | Portable C99 with optional OpenMP; three accumulation orders | Conforms; all orders agree |
 | `torch` | PyTorch CPU | Conforms |
 | `mlx` | Apple MLX (Metal on Apple silicon, CPU elsewhere) | Conforms on CPU; Metal not yet run |
-| `cuda` | NVIDIA GPUs (CuPy, kernels compiled at run time) | Conforms on a Tesla T4 (Kaggle, 28 Oct 2026); also checked under CPU emulation on every push |
+| `cuda` | NVIDIA GPUs (CuPy, kernels compiled at run time) | Conforms on a Tesla T4 (Kaggle, 28 Oct 2026), v0.1 and v0.2 (Qwen2.5-0.5B); also checked under CPU emulation on every push |
 | ROCm / HIP | AMD GPUs | Planned |
 
 ## Quick start
@@ -182,7 +222,8 @@ this way on every push.
    a conformance suite with a golden digest.
 2. **Stage 2:** CUDA kernels (done: conform on a Tesla T4) and Metal.
    Convert a real open model to the spec (done: Qwen2.5-0.5B, spec v0.2, three implementations
-   bit-identical). Next: v0.2 kernels for C, CUDA and Metal, and the speed cost of determinism.
+   bit-identical; the CUDA kernels give the same bits on a Tesla T4 at 531 tokens/s). Next: int8
+   tensor-core kernels to close the gap to float16, and Metal.
 3. **Stage 3:** AMD ROCm. Machine-checked proofs that the kernels meet the
    spec and the bounds. Preprint.
 4. **Stage 4:** a public auditor that checks, from outputs alone, whether a

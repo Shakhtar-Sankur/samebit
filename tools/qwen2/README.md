@@ -52,3 +52,5 @@ python evaluate.py 40    # perplexity on 40 × 256 tokens of WikiText-2 test
 | WikiText-2 test perplexity, 40 × 256 tokens | 22.99 | 23.16 (+0.75%) |
 | Same top-1 token as float32 | | 93.25% |
 | Bit-identical across NumPy BLAS, NumPy int64, PyTorch | | yes: all 24 residual streams and the logits |
+| Bit-identical on a Tesla T4 (CUDA) vs x86 CPU | | yes: WikiText-2 windows 0 and 1, split-K 1 to 64 |
+| Speed, 256-token prompt on a T4 | float16 6,033 tokens/s | 531 tokens/s |
