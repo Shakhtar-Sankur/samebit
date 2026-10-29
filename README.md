@@ -175,6 +175,15 @@ bound checks.
 | `cuda` | NVIDIA GPUs (CuPy, kernels compiled at run time) | Conforms on a Tesla T4 (Kaggle, 28 Oct 2026), v0.1 and v0.2 (Qwen2.5-0.5B); also checked under CPU emulation on every push |
 | ROCm / HIP | AMD GPUs | Planned |
 
+## Teaching lab: the Same-Bits Contract
+
+[`labs/same_bits`](labs/same_bits) is an interactive [marimo](https://marimo.io) lab, in the
+format of the Co-Labs of Harvard's open *Machine Learning Systems* textbook. It shows why
+temperature 0 does not give the same answer twice. Students measure four distinct float32 sums
+of the same 4,096 numbers, then 7 of 64 users getting different text only because they were
+batched. Then they fix it twice: with batch-invariant kernels, at a speed cost, and with
+integer arithmetic, at an accuracy cost. It runs on numpy alone: `marimo run labs/same_bits/lab_same_bits.py`.
+
 ## Quick start
 
 ```bash

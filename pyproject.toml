@@ -34,7 +34,7 @@ where = ["src"]
 samebit = ["golden.json", "csrc/*.c"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "labs/same_bits/tests"]
 
 [tool.ruff]
 line-length = 100
